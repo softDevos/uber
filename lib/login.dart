@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -84,11 +86,7 @@ class _LoginState extends State<Login> {
                     color: Colors.yellow,
                     textColor: Colors.white,
                     onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => validation(context),
-                        ),
-                      );
+                      validation(context);
                     },
                     child: const SizedBox(
                       height: 50,
@@ -135,7 +133,9 @@ class _LoginState extends State<Login> {
         email: txtEmail.text,
         password: txtPass.text,
       );
+
       if (user != null) {
+        dev.log(user.user.toString(), name: '# LOGIN USER');
         usersRef.child(user.user!.uid).once().then(
               (value) => (snap) {
                 if (snap.value != null) {
