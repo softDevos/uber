@@ -1,7 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:developer' as dev;
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:uber/search_location.dart';
+
+import 'config.dart';
 
 class Home extends StatefulWidget {
   const Home({Key? key}) : super(key: key);
@@ -11,19 +18,35 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+  /// Get user current location & Geocoding the current location
+  late Position currentPosition;
+  var geoLocator = Geolocator();
+  double bottomPadding = 0;
+
+  void locatePosition() async {
+    Position position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    print(LatLng(position.latitude, position.longitude));
+    currentPosition = position;
+    CameraPosition cameraPosition = CameraPosition(
+      target: LatLng(position.latitude, position.longitude),
+      zoom: 14,
+    );
+    googleMc.animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
+
+    String address = await searchCoordinateAddress(position);
+    dev.log(address, name: 'This is Your address');
+  }
+
+  // Reversing the location
+
   final Completer<GoogleMapController> completerGmc = Completer();
 
   late GoogleMapController googleMc;
   static const CameraPosition _kGooglePlex = CameraPosition(
     target: LatLng(24.6812168, 46.7380791),
     zoom: 14.4746,
-  );
-
-  static const CameraPosition _kLake = CameraPosition(
-    bearing: 192.8334901395799,
-    target: LatLng(24.6812168, 46.7380791),
-    tilt: 59.440717697143555,
-    zoom: 19.151926040649414,
   );
 
   @override
@@ -59,13 +82,20 @@ class _HomeState extends State<Home> {
       body: Stack(
         children: [
           GoogleMap(
+            padding: EdgeInsets.only(bottom: bottomPadding),
             mapType: MapType.normal,
             myLocationButtonEnabled: true,
             myLocationEnabled: true,
+            zoomGesturesEnabled: true,
+            zoomControlsEnabled: true,
             initialCameraPosition: _kGooglePlex,
             onMapCreated: (GoogleMapController controller) {
               completerGmc.complete(controller);
               googleMc = controller;
+              setState(() {
+                bottomPadding = 300;
+              });
+              locatePosition();
             },
           ),
           Positioned(
@@ -73,7 +103,7 @@ class _HomeState extends State<Home> {
             right: 0,
             bottom: 0,
             child: Container(
-              height: 320,
+              height: 300,
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
@@ -105,34 +135,46 @@ class _HomeState extends State<Home> {
                       ),
                     ),
                     const Text(
-                      "Where to?, ",
+                      "Where to?",
                       style: TextStyle(
                         fontSize: 20,
                         fontFamily: "Brand Bold",
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black54,
-                            blurRadius: 6,
-                            spreadRadius: 0.5,
-                            offset: Offset(0.7, 0.7),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SearchLocation(),
                           ),
-                        ],
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Row(
-                          children: const [
-                            Icon(Icons.search, color: Colors.blueAccent),
-                            SizedBox(height: 10),
-                            Text("Search Drop off"),
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black54,
+                              blurRadius: 6,
+                              spreadRadius: 0.5,
+                              offset: Offset(0.7, 0.7),
+                            ),
                           ],
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: const [
+                              Icon(
+                                Icons.search,
+                                color: Colors.blueAccent,
+                              ),
+                              SizedBox(height: 10),
+                              Text("Search Drop off"),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -161,7 +203,11 @@ class _HomeState extends State<Home> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    const DividerWidget(),
+                    const Divider(
+                      height: 1,
+                      color: Colors.black,
+                      thickness: 0.2,
+                    ),
                     const SizedBox(height: 10),
                     Row(
                       children: [
@@ -193,28 +239,35 @@ class _HomeState extends State<Home> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _goToTheLake,
-        child: const Icon(Icons.location_on),
-      ),
     );
   }
 
-  Future<void> _goToTheLake() async {
-    final GoogleMapController controller = await completerGmc.future;
-    controller.animateCamera(CameraUpdate.newCameraPosition(_kLake));
+  //assistant methods
+  static Future<String> searchCoordinateAddress(Position position) async {
+    String placeAddress = "";
+    String url =
+        "https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.latitude}, ${position.longitude}=$mapKey";
+    var response = await getRequest(url);
+    if (response != 'failed') {
+      placeAddress = response['results'][0]['formatted_address'];
+    }
+    return placeAddress;
   }
-}
 
-class DividerWidget extends StatelessWidget {
-  const DividerWidget({Key? key}) : super(key: key);
+  // Request assistant
+  static Future<dynamic> getRequest(String url) async {
+    try {
+      http.Response response = await http.get(Uri.parse(url));
 
-  @override
-  Widget build(BuildContext context) {
-    return const Divider(
-      height: 1,
-      color: Colors.black,
-      thickness: 0.2,
-    );
+      if (response.statusCode == 200) {
+        String jSonData = response.body;
+        var decodedData = jsonDecode(jSonData);
+        return decodedData;
+      } else {
+        return 'failed';
+      }
+    } catch (exp) {
+      return 'failed';
+    }
   }
 }

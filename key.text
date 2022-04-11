@@ -1,1 +1,6 @@
 AIzaSyBF_g0Excp3v6azsnW0FL83KC5x6xqz6E0
+https://developers.google.com/maps/documentation/geocoding/start
+https://maps.googleapis.com/maps/api/geocode/json?latlng=24.6812168, 46.7380791&key=AIzaSyBF_g0Excp3v6azsnW0FL83KC5x6xqz6E0
+https://maps.googleapis.com/maps/api/geocode/json?address=1600+Amphitheatre+Parkway,+Mountain+View,+CA&key=AIzaSyBF_g0Excp3v6azsnW0FL83KC5x6xqz6E0
+
+https://maps.googleapis.com/maps/api/place/autocomplete/json?input=Paris&types=geocode&key=AIzaSyBF_g0Excp3v6azsnW0FL83KC5x6xqz6E0
